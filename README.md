@@ -40,10 +40,6 @@ hazme una auditoría de seguridad de https://miweb.com
 
 Claude pedirá confirmación de autorización antes de ejecutar ningún test.
 
-## Créditos
-
-- `web-security-audit` — basada en el trabajo de [Angel Aparicio / Solutech IA](https://github.com/angelapaia/web-security-audit-skill), adaptada por Julio Flores.
-
 ---
 
 > **Aviso legal**: estas skills son para uso en sistemas propios o con autorización explícita del propietario. El uso no autorizado puede ser ilegal.
