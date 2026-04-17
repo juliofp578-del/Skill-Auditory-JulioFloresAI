@@ -2,7 +2,6 @@ name: 🤖 Weekly AI Newsletter
 
 on:
   schedule:
-    # Cada domingo a las 20:00 UTC+2 (España verano) = 18:00 UTC
     - cron: '0 18 * * 0'
   workflow_dispatch:
 
@@ -37,27 +36,30 @@ jobs:
           secrets = ["ANTHROPIC_API_KEY", "GMAIL_USER", "GMAIL_APP_PASSWORD", "RECIPIENT_EMAIL"]
           missing = [s for s in secrets if not os.environ.get(s)]
           if missing:
-              print(f"❌ Secrets no configurados: {missing}", file=sys.stderr)
+              print(f"Secrets no configurados: {missing}", file=sys.stderr)
               sys.exit(1)
-          print("✅ Los 4 secrets están configurados")
-          print(f"   GMAIL_USER = {os.environ['GMAIL_USER']}")
-          print(f"   RECIPIENT_EMAIL = {os.environ['RECIPIENT_EMAIL']}")
-          print(f"   ANTHROPIC_API_KEY = {os.environ['ANTHROPIC_API_KEY'][:8]}...")
+          print(f"OK: GMAIL_USER={os.environ['GMAIL_USER']}, RECIPIENT={os.environ['RECIPIENT_EMAIL']}, API_KEY={os.environ['ANTHROPIC_API_KEY'][:8]}...")
           EOF
 
       - name: Ejecutar newsletter semanal
+        id: run_script
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           PYTHONUNBUFFERED: "1"
-        run: python -u weekly_ai_newsletter.py
+        run: |
+          python -u weekly_ai_newsletter.py 2>&1 | tee /tmp/script_output.txt
+          exit ${PIPESTATUS[0]}
 
-      - name: Notificar éxito
-        if: success()
-        run: echo "✅ Newsletter enviado correctamente el $(date +'%d/%m/%Y a las %H:%M UTC')"
-
-      - name: Notificar fallo
+      - name: Mostrar error como anotacion
         if: failure()
-        run: echo "❌ Error al enviar el newsletter. Revisa los logs anteriores."
+        run: |
+          OUTPUT=$(cat /tmp/script_output.txt 2>/dev/null | tail -30 | tr '\n' ' ' | sed 's/"/\\"/g')
+          echo "::error title=Newsletter Script Error::${OUTPUT}"
+          cat /tmp/script_output.txt
+
+      - name: Exito
+        if: success()
+        run: echo "Newsletter enviado el $(date +'%d/%m/%Y %H:%M UTC')"
