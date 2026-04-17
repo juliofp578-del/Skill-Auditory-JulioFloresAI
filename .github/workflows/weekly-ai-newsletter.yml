@@ -1,0 +1,44 @@
+name: 🤖 Weekly AI Newsletter
+
+on:
+  schedule:
+    # Cada domingo a las 20:00 UTC+2 (España verano) = 18:00 UTC
+    # Para España en invierno (UTC+1) cambiar a '0 19 * * 0'
+    - cron: '0 18 * * 0'
+  workflow_dispatch:
+    # Permite ejecutar manualmente desde la pestaña Actions de GitHub
+
+jobs:
+  send-newsletter:
+    name: Generar y enviar newsletter
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar newsletter semanal
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: python weekly_ai_newsletter.py
+
+      - name: Notificar éxito
+        if: success()
+        run: echo "✅ Newsletter enviado correctamente el $(date +'%d/%m/%Y a las %H:%M UTC')"
+
+      - name: Notificar fallo
+        if: failure()
+        run: echo "❌ Error al enviar el newsletter. Revisa los logs anteriores."
