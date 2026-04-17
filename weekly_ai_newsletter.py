@@ -140,15 +140,36 @@ def send_email(html_body: str) -> None:
 
 
 def main() -> None:
+    import traceback
     print("[START] Generando newsletter semanal de IA...")
-    articles = fetch_week_articles()
+
+    try:
+        articles = fetch_week_articles()
+        print(f"[INFO] Total artículos: {len(articles)}")
+    except Exception:
+        print("[ERROR] fetch_week_articles falló:")
+        traceback.print_exc()
+        raise
 
     if not articles:
-        print("[WARN] No se encontraron artículos esta semana. Abortando.")
-        return
+        print("[WARN] No se encontraron artículos. Generando newsletter de muestra...")
+        articles = [{"source": "Test", "title": "Sin noticias esta semana", "summary": "", "link": "", "published": "N/A"}]
 
-    html = generate_newsletter_html(articles)
-    send_email(html)
+    try:
+        html = generate_newsletter_html(articles)
+        print(f"[INFO] HTML generado: {len(html)} caracteres")
+    except Exception:
+        print("[ERROR] generate_newsletter_html falló:")
+        traceback.print_exc()
+        raise
+
+    try:
+        send_email(html)
+    except Exception:
+        print("[ERROR] send_email falló:")
+        traceback.print_exc()
+        raise
+
     print("[DONE] Proceso completado.")
 
 
