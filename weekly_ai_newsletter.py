@@ -5,6 +5,7 @@ Se ejecuta automáticamente cada domingo a las 20:00 via GitHub Actions.
 
 import os
 import smtplib
+import traceback
 import feedparser
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
@@ -36,6 +37,7 @@ def fetch_week_articles() -> list[dict]:
     for source_name, feed_url in RSS_FEEDS:
         try:
             feed = feedparser.parse(feed_url)
+            print(f"[INFO] {source_name}: {len(feed.entries)} entradas encontradas")
             for entry in feed.entries[:15]:
                 published = None
                 if hasattr(entry, "published_parsed") and entry.published_parsed:
@@ -54,7 +56,7 @@ def fetch_week_articles() -> list[dict]:
         except Exception as exc:
             print(f"[WARN] No se pudo cargar {source_name}: {exc}")
 
-    print(f"[INFO] Artículos recopilados: {len(articles)}")
+    print(f"[INFO] Artículos recopilados esta semana: {len(articles)}")
     return articles[:40]
 
 
@@ -72,6 +74,7 @@ def generate_newsletter_html(articles: list[dict]) -> str:
         f"– {datetime.now().strftime('%d/%m/%Y')}"
     )
 
+    print(f"[INFO] Llamando a Claude API (modelo: claude-opus-4-7)...")
     response = client.messages.create(
         model="claude-opus-4-7",
         max_tokens=4096,
@@ -113,7 +116,9 @@ INSTRUCCIONES DE FORMATO:
         ],
     )
 
-    return response.content[0].text
+    html = response.content[0].text
+    print(f"[INFO] HTML generado: {len(html)} caracteres")
+    return html
 
 
 def send_email(html_body: str) -> None:
@@ -122,6 +127,7 @@ def send_email(html_body: str) -> None:
     gmail_password = os.environ["GMAIL_APP_PASSWORD"]
     recipient = os.environ["RECIPIENT_EMAIL"]
 
+    print(f"[INFO] Enviando email a {recipient} desde {gmail_user}...")
     week_label = datetime.now().strftime("semana del %d/%m/%Y")
     subject = f"🤖 AI Weekly · Resumen IA empresarial · {week_label}"
 
@@ -141,15 +147,33 @@ def send_email(html_body: str) -> None:
 
 def main() -> None:
     print("[START] Generando newsletter semanal de IA...")
-    articles = fetch_week_articles()
+
+    try:
+        articles = fetch_week_articles()
+    except Exception:
+        print("[ERROR] fetch_week_articles falló:")
+        traceback.print_exc()
+        raise
 
     if not articles:
-        print("[WARN] No se encontraron artículos esta semana. Abortando.")
-        return
+        print("[WARN] Sin artículos esta semana, generando resumen vacío...")
+        articles = [{"source": "Aviso", "title": "Sin noticias recopiladas esta semana", "summary": "", "link": "", "published": "N/A"}]
 
-    html = generate_newsletter_html(articles)
-    send_email(html)
-    print("[DONE] Proceso completado.")
+    try:
+        html = generate_newsletter_html(articles)
+    except Exception:
+        print("[ERROR] generate_newsletter_html falló:")
+        traceback.print_exc()
+        raise
+
+    try:
+        send_email(html)
+    except Exception:
+        print("[ERROR] send_email falló:")
+        traceback.print_exc()
+        raise
+
+    print("[DONE] Proceso completado exitosamente.")
 
 
 if __name__ == "__main__":
