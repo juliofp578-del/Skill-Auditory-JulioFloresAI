@@ -106,7 +106,11 @@ INSTRUCCIONES DE FORMATO:
         }],
     )
 
-    html = response.content[0].text
+    html = response.content[0].text.strip()
+    # Strip markdown code fences if Claude wrapped the output
+    if html.startswith("```"):
+        html = html.split("\n", 1)[1] if "\n" in html else html
+        html = html.rsplit("```", 1)[0].strip()
     print(f"[INFO] HTML generado: {len(html)} caracteres")
     return html
 
