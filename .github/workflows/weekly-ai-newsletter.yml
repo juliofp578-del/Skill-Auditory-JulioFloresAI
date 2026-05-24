@@ -1,5 +1,8 @@
 name: 🤖 Weekly AI Newsletter
 
+# Ejecuta cada domingo a las 20:00 hora España (CEST = UTC+2)
+# → 18:00 UTC en verano (marzo–octubre).
+# En horario de invierno (CET = UTC+1) el envío llega a las 19:00 local.
 on:
   schedule:
     - cron: '0 18 * * 0'
@@ -7,9 +10,9 @@ on:
 
 jobs:
   send-newsletter:
-    name: Generar y enviar newsletter
+    name: Generar y enviar newsletter semanal
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
       - name: Checkout repositorio
@@ -33,10 +36,10 @@ jobs:
         run: |
           python - <<'EOF'
           import os, sys
-          secrets = ["ANTHROPIC_API_KEY", "GMAIL_USER", "GMAIL_APP_PASSWORD", "RECIPIENT_EMAIL"]
-          missing = [s for s in secrets if not os.environ.get(s)]
+          required = ["ANTHROPIC_API_KEY", "GMAIL_USER", "GMAIL_APP_PASSWORD", "RECIPIENT_EMAIL"]
+          missing = [s for s in required if not os.environ.get(s)]
           if missing:
-              print(f"Secrets no configurados: {missing}", file=sys.stderr)
+              print(f"::error::Secrets no configurados: {missing}", file=sys.stderr)
               sys.exit(1)
           print(f"OK: GMAIL_USER={os.environ['GMAIL_USER']}, RECIPIENT={os.environ['RECIPIENT_EMAIL']}, API_KEY={os.environ['ANTHROPIC_API_KEY'][:8]}...")
           EOF
@@ -53,13 +56,13 @@ jobs:
           python -u weekly_ai_newsletter.py 2>&1 | tee /tmp/script_output.txt
           exit ${PIPESTATUS[0]}
 
-      - name: Mostrar error como anotacion
+      - name: Mostrar error como anotación
         if: failure()
         run: |
-          OUTPUT=$(cat /tmp/script_output.txt 2>/dev/null | tail -30 | tr '\n' ' ' | sed 's/"/\\"/g')
+          OUTPUT=$(tail -30 /tmp/script_output.txt 2>/dev/null | tr '\n' ' ' | sed 's/"/\\"/g')
           echo "::error title=Newsletter Script Error::${OUTPUT}"
           cat /tmp/script_output.txt
 
-      - name: Exito
+      - name: Éxito
         if: success()
-        run: echo "Newsletter enviado el $(date +'%d/%m/%Y %H:%M UTC')"
+        run: echo "✅ Newsletter enviado el $(TZ=Europe/Madrid date +'%d/%m/%Y %H:%M hora España')"
