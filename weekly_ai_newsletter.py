@@ -1,6 +1,7 @@
 """
 Weekly AI Newsletter - Resumen semanal de noticias de IA
-Se ejecuta automáticamente cada domingo a las 20:00 via GitHub Actions.
+Se ejecuta automáticamente cada domingo a las 20:00 (CET/Madrid) via GitHub Actions.
+Cubre Google/DeepMind, Anthropic, OpenAI y tendencias de IA empresarial.
 """
 
 import os
