@@ -2,8 +2,14 @@ name: 🤖 Weekly AI Newsletter
 
 on:
   schedule:
-    - cron: '0 18 * * 0'
+    - cron: '0 18 * * 0'   # Verano  (CEST = UTC+2): 20:00 hora España
+    - cron: '0 19 * * 0'   # Invierno (CET = UTC+1): 20:00 hora España
   workflow_dispatch:
+    inputs:
+      force_send:
+        description: 'Forzar envío (ignora la comprobación de hora España)'
+        type: boolean
+        default: false
 
 jobs:
   send-newsletter:
@@ -29,16 +35,15 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: |
           python - <<'EOF'
           import os, sys
-          secrets = ["ANTHROPIC_API_KEY", "GMAIL_USER", "GMAIL_APP_PASSWORD", "RECIPIENT_EMAIL"]
+          secrets = ["ANTHROPIC_API_KEY", "GMAIL_USER", "GMAIL_APP_PASSWORD"]
           missing = [s for s in secrets if not os.environ.get(s)]
           if missing:
               print(f"Secrets no configurados: {missing}", file=sys.stderr)
               sys.exit(1)
-          print(f"OK: GMAIL_USER={os.environ['GMAIL_USER']}, RECIPIENT={os.environ['RECIPIENT_EMAIL']}, API_KEY={os.environ['ANTHROPIC_API_KEY'][:8]}...")
+          print(f"OK: GMAIL_USER={os.environ['GMAIL_USER']}, API_KEY={os.environ['ANTHROPIC_API_KEY'][:8]}...")
           EOF
 
       - name: Ejecutar newsletter semanal
@@ -48,6 +53,7 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          FORCE_SEND: ${{ github.event.inputs.force_send == 'true' && 'true' || '' }}
           PYTHONUNBUFFERED: "1"
         run: |
           python -u weekly_ai_newsletter.py 2>&1 | tee /tmp/script_output.txt
@@ -62,4 +68,4 @@ jobs:
 
       - name: Exito
         if: success()
-        run: echo "Newsletter enviado el $(date +'%d/%m/%Y %H:%M UTC')"
+        run: echo "Newsletter procesado el $(date +'%d/%m/%Y %H:%M UTC')"

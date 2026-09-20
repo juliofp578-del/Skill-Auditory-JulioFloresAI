@@ -1,12 +1,13 @@
 """
 Weekly AI Newsletter - Resumen semanal de noticias de IA
-Se ejecuta automáticamente cada domingo a las 20:00 via GitHub Actions.
+Se ejecuta automáticamente cada domingo a las 20:00 hora España via GitHub Actions.
 """
 
 import os
 import smtplib
 import traceback
 import feedparser
+import zoneinfo
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -27,6 +28,21 @@ SYSTEM_PROMPT = """Eres un analista experto en inteligencia artificial y tecnolo
 Tu misión es crear resúmenes semanales ejecutivos, claros y accionables sobre el ecosistema de IA,
 con foco especial en Google, Anthropic, OpenAI y la aplicación empresarial de la IA.
 Escribes en español, con un estilo profesional pero accesible. Nunca inventas noticias."""
+
+SPAIN_TZ = zoneinfo.ZoneInfo("Europe/Madrid")
+
+
+def is_correct_send_time() -> bool:
+    """
+    Previene doble envío cuando los dos triggers cron (CEST y CET) se activan.
+    El trigger incorrecto siempre cae fuera del rango 19:00-20:59 España:
+      - Verano (CEST=UTC+2): 18 UTC = 20:00 ✓ · 19 UTC = 21:00 ✗
+      - Invierno (CET=UTC+1): 18 UTC = 19:00 ✗ · 19 UTC = 20:00 ✓
+    """
+    if os.environ.get("FORCE_SEND"):
+        return True
+    now_spain = datetime.now(SPAIN_TZ)
+    return 19 <= now_spain.hour <= 20
 
 
 def fetch_week_articles() -> list[dict]:
@@ -114,7 +130,7 @@ INSTRUCCIONES DE FORMATO:
 def send_email(html_body: str) -> None:
     gmail_user = os.environ["GMAIL_USER"]
     gmail_password = os.environ["GMAIL_APP_PASSWORD"]
-    recipient = os.environ["RECIPIENT_EMAIL"]
+    recipient = os.environ.get("RECIPIENT_EMAIL", "juliofp578@gmail.com")
 
     print(f"[INFO] Enviando email a {recipient}...")
     subject = f"🤖 AI Weekly · Resumen IA empresarial · semana del {datetime.now().strftime('%d/%m/%Y')}"
@@ -134,6 +150,15 @@ def send_email(html_body: str) -> None:
 
 def main() -> None:
     print("[START] Generando newsletter semanal de IA...")
+
+    if not is_correct_send_time():
+        now_spain = datetime.now(SPAIN_TZ)
+        print(
+            f"[SKIP] Son las {now_spain.strftime('%H:%M %Z')} en España. "
+            f"El envío está programado para las 20:00. "
+            f"(Establece FORCE_SEND=true para omitir esta comprobación.)"
+        )
+        return
 
     try:
         articles = fetch_week_articles()
